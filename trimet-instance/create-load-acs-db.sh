@@ -7,7 +7,7 @@ pg_dbase=census
 # Prompt the user to enter their postgres password, 'PGPASSWORD' is an environment
 # variable and will be applied to pgsql tools automatically when it is exported
 export PGPASSWORD
-echo "Enter PostGreSQL Password:"
+echo "Enter PostGreSQL password for user ${pg_user}:"
 read -s PGPASSWORD
 
 # Set project workspaces, the data directory must be somewhere that postgres can
@@ -53,8 +53,8 @@ downloadPrepareData()
 			echo "wget ${data_url}/${file_name} -O $full_path"
 			wget "${data_url}/${file_name}" -O "$full_path"
 			
-			echo "unzip -q $full_path -d ${schema_dir}/${j}"
-			unzip -q "$full_path" -d "${schema_dir}/${j}"
+			echo "unzip -o -q $full_path -d ${schema_dir}/${j}"
+			unzip -o -q "$full_path" -d "${schema_dir}/${j}"
 		done
 	done
 }
@@ -130,15 +130,26 @@ runDataFunctions()
 	# the ACS data from the selected product
 
 	data_script="${code_dir}/trimet-instance/execute_data_functions.sql"
-	echo "psql -h $pg_host -U $pg_user -d $pg_dbase -v states=${states} -v data_product=${pg_schema} -f "$data_script""
+	echo "psql -h $pg_host -U $pg_user -d $pg_dbase -v states=${states} \
+		-v data_product=${pg_schema} -f $data_script"
 	psql -e -h $pg_host -U $pg_user -d $pg_dbase -v states="${states}" \
-		-v data_product="${pg_schema}" -f "$data_script" > cen-pg.log
+		-v data_product="${pg_schema}" -f "$data_script"
 }
 
-#downloadPrepareData;
+createTruncatedGeoid()
+{
+	# This will allow for easy matching to tiger geography
+	trunc_script="${code_dir}/trimet-instance/add_truncated_geoid.sql"
+	echo "psql -h $pg_host -U $pg_user -d $pg_dbase -f $trunc_script"
+	psql -h $pg_host -U $pg_user -d $pg_dbase -f "$trunc_script"
+
+}
+
+downloadPrepareData;
 createPostGisDb;
 runMetaScripts;
 setUploadRootDataProduct;
 createSchema;
 setupDataDictTables;
 runDataFunctions;
+createTruncatedGeoid;
