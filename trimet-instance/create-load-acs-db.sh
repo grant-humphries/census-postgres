@@ -1,14 +1,16 @@
+# !/bin/sh
+
 # Set postgres parameters
 pg_host=localhost
 pg_user=postgres
 pg_schema=acs2013_5yr #schema name must match census convention
-pg_dbase=census
+pg_dbname=census
 
 # Prompt the user to enter their postgres password, 'PGPASSWORD' is an environment
 # variable and will be applied to pgsql tools automatically when it is exported
-export PGPASSWORD
 echo "Enter PostGreSQL password for user ${pg_user}:"
 read -s PGPASSWORD
+export PGPASSWORD
 
 # Set project workspaces, the data directory must be somewhere that postgres can
 # read from with the 'COPY' command
@@ -62,12 +64,12 @@ downloadPrepareData()
 createPostGisDb()
 {
 	# Create new Db (drop if already exists)
-	dropdb -h $pg_host -U $pg_user --if-exists -i $pg_dbase
-	createdb -O $pg_user -h $pg_host -U $pg_user $pg_dbase
+	dropdb -h $pg_host -U $pg_user --if-exists -i $pg_dbname
+	createdb -O $pg_user -h $pg_host -U $pg_user $pg_dbname
 	
 	# spatially enable the Db
 	postgis_cmd="CREATE EXTENSION postgis;"
-	psql -d $pg_dbase -h $pg_host -U $pg_user -c "$postgis_cmd"
+	psql -d $pg_dbname -h $pg_host -U $pg_user -c "$postgis_cmd"
 }
 
 runMetaScripts()
@@ -84,7 +86,7 @@ runMetaScripts()
 	declare -a meta_scripts=("$meta1" "$meta2" "$meta3" "$meta4")
 	for i in "${meta_scripts[@]}"
 	do
-		psql -h $pg_host -U $pg_user -d $pg_dbase -f "${meta_path}/${i}"
+		psql -h $pg_host -U $pg_user -d $pg_dbname -f "${meta_path}/${i}"
 	done
 }
 
@@ -93,12 +95,12 @@ setUploadRootDataProduct()
 	# Indicate the location of the root directory that contains 
 	# that ACS/Census Data
 	set_root_cmd="SELECT set_census_upload_root('${data_dir}');"
-	echo "psql -h $pg_host -U $pg_user -d $pg_dbase -c $set_root_cmd"
-	psql -h $pg_host -U $pg_user -d $pg_dbase -c "$set_root_cmd"
+	echo "psql -h $pg_host -U $pg_user -d $pg_dbname -c $set_root_cmd"
+	psql -h $pg_host -U $pg_user -d $pg_dbname -c "$set_root_cmd"
 
 	set_product_cmd="SELECT set_data_product(${yr}, ${len});"
-	echo "psql -h $pg_host -U $pg_user -d $pg_dbase -c $set_product_cmd"
-	psql -h $pg_host -U $pg_user -d $pg_dbase -c "$set_product_cmd"
+	echo "psql -h $pg_host -U $pg_user -d $pg_dbname -c $set_product_cmd"
+	psql -h $pg_host -U $pg_user -d $pg_dbname -c "$set_product_cmd"
 }
 
 createSchema()
@@ -106,8 +108,8 @@ createSchema()
 	# Create schema that will hold the given year and year-span (e.g. 5 year)
 	# ACS data
 	schema_cmd="CREATE SCHEMA $pg_schema;"
-	echo "psql -h $pg_host -U $pg_user -d $pg_dbase -c $schema_cmd"
-	psql -h $pg_host -U $pg_user -d $pg_dbase -c "$schema_cmd"
+	echo "psql -h $pg_host -U $pg_user -d $pg_dbname -c $schema_cmd"
+	psql -h $pg_host -U $pg_user -d $pg_dbname -c "$schema_cmd"
 }
 
 setupDataDictTables()
@@ -121,7 +123,7 @@ setupDataDictTables()
 	sed -i='original' -r 's/,\s+/,/g' "${schema_dir}/${d_dict}"
 
 	d_dict_script="${code_dir}/${pg_schema}/ACS ${yr} Data Dictionary.sql"
-	psql -h $pg_host -U $pg_user -d $pg_dbase -f "$d_dict_script"
+	psql -h $pg_host -U $pg_user -d $pg_dbname -f "$d_dict_script"
 }
 
 runDataFunctions()
@@ -130,9 +132,9 @@ runDataFunctions()
 	# the ACS data from the selected product
 
 	data_script="${code_dir}/trimet-instance/execute_data_functions.sql"
-	echo "psql -h $pg_host -U $pg_user -d $pg_dbase -v states=${states} \
+	echo "psql -h $pg_host -U $pg_user -d $pg_dbname -v states=${states} \
 		-v data_product=${pg_schema} -f $data_script"
-	psql -e -h $pg_host -U $pg_user -d $pg_dbase -v states="${states}" \
+	psql -e -h $pg_host -U $pg_user -d $pg_dbname -v states="${states}" \
 		-v data_product="${pg_schema}" -f "$data_script"
 }
 
@@ -140,8 +142,8 @@ createTruncatedGeoid()
 {
 	# This will allow for easy matching to tiger geography
 	trunc_script="${code_dir}/trimet-instance/add_truncated_geoid.sql"
-	echo "psql -h $pg_host -U $pg_user -d $pg_dbase -f $trunc_script"
-	psql -h $pg_host -U $pg_user -d $pg_dbase -f "$trunc_script"
+	echo "psql -h $pg_host -U $pg_user -d $pg_dbname -f $trunc_script"
+	psql -h $pg_host -U $pg_user -d $pg_dbname -f "$trunc_script"
 
 }
 
